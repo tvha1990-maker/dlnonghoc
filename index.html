@@ -34,40 +34,53 @@ th,td{padding:7px 8px;border-bottom:1px solid var(--bd);text-align:left}th{color
 .hint{font-size:13px;color:var(--mut);margin:0 0 10px}
 #msg{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--tx);color:var(--bg);padding:10px 16px;border-radius:20px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s}
 #msg.on{opacity:1}
+.bar{display:flex;gap:10px;align-items:flex-end}
 </style>
 </head>
 <body>
 <main>
-<h1><span>🌱 Nhập liệu cây trồng</span><button id="cfg" class="sec sm">⚙ Trường dữ liệu</button></h1>
+<h1>🌱 Nhập liệu cây trồng</h1>
+<div class="card bar"><div style="flex:1"><label>Cây trồng đang nhập</label><select id="cs"></select></div><button id="cfg" class="sec sm">⚙ Tùy chỉnh</button></div>
 
 <section class="card" id="cfgp" hidden>
- <div class="head"><b>Tùy chỉnh trường dữ liệu</b><button id="cfgx" class="sec sm">Đóng</button></div>
- <p class="hint">Sửa tên, đổi kiểu, sắp xếp hoặc thêm/xóa trường. Thay đổi được lưu ngay. Dữ liệu cũ không bị mất khi đổi tên hoặc đổi kiểu.</p>
- <div id="cl"></div>
+ <div class="head"><b>Tùy chỉnh</b><button id="cfgx" class="sec sm">Đóng</button></div>
+ <label>Tên cây trồng</label><input id="cname">
+ <div class="row"><button id="addc" class="sec">+ Cây trồng mới</button><button id="delc" class="ghost">Xóa cây này</button></div>
+ <p class="hint" style="margin-top:10px">Mỗi cây trồng có bộ trường dữ liệu riêng. Cây mới sẽ sao chép trường của cây đang chọn, sau đó bạn chỉnh lại. Thay đổi được lưu ngay và không làm mất dữ liệu đã nhập.</p>
+ <b>Lô – Vị trí – Cây</b>
+ <p class="hint" style="margin-top:4px">Mã cây = số vị trí . số thứ tự cây. Ví dụ lô 2D có 8 vị trí, mỗi vị trí 4 cây thì vị trí 2 gồm các cây 2.1, 2.2, 2.3, 2.4.</p>
+ <div id="ll"></div>
+ <div class="row" style="margin-bottom:14px"><button id="addl" class="sec">+ Thêm lô</button></div>
+ <b id="ft"></b>
+ <div id="cl" style="margin-top:8px"></div>
  <div class="row"><button id="add">+ Thêm trường</button><button id="rst" class="sec">Về mặc định</button></div>
 </section>
 
 <form class="card" onsubmit="return false">
- <div class="grid" id="fg"></div>
+ <div class="row" style="margin:0 0 6px"><button type="button" id="mic" class="sec">🎤 Nói để nhập</button></div>
+ <p class="hint" id="vsay" style="margin:0 0 4px"></p>
+ <p class="hint" id="vhint" style="margin:0 0 10px"></p>
+ <div class="grid" id="hg"></div>
+ <p class="hint" id="dup" style="margin:8px 0 0"></p>
+ <div class="grid" id="fg" style="margin-top:10px"></div>
  <div class="row"><button id="save">Lưu bản ghi</button><button class="sec" id="cancel" style="display:none">Hủy sửa</button></div>
 </form>
 
 <section class="card">
- <div class="head"><b id="count"></b><button id="exp" class="sec">Xuất Excel</button></div>
+ <div class="head"><b id="count"></b></div>
+ <div class="row" style="margin:0 0 10px"><button id="exp" class="sec sm">Xuất Excel cây này</button><button id="expall" class="sec sm">Xuất tất cả cây</button></div>
  <div class="scroll"><table><thead id="th"></thead><tbody id="tb"></tbody></table></div>
- <div class="row"><button class="ghost" id="clr">Xóa toàn bộ</button></div>
+ <div class="row"><button class="ghost" id="clr">Xóa toàn bộ bản ghi của cây này</button></div>
 </section>
 </main>
 <div id="msg"></div>
 <script>
 (function(){
-var KEY="cropdata_v1",SK="cropschema_v1",rows=[],S=[],editing=-1;
+var KEY="cropdata_v1",SK="cropschema_v1",CK="cropcrops_v2",UK="cropcur_v2",rows=[],crops=[],cur="",S=[],editing=-1,sel={lo:"",vt:1,cay:1},prevSel=null;
 var TYPES=[["text","Chữ"],["number","Số"],["date","Ngày"],["select","Chọn từ danh sách"],["long","Ghi chú dài"]];
 var DEF=[
 {id:"ngay",name:"Ngày đo",type:"date",keep:1},
 {id:"loai",name:"Loại cây",type:"text",keep:1},
-{id:"lo",name:"Lô / Công thức",type:"text",keep:1},
-{id:"ma",name:"Mã cây",type:"text"},
 {id:"cao",name:"Chiều cao (cm)",type:"number"},
 {id:"la",name:"Số lá",type:"number"},
 {id:"dk",name:"Đường kính (mm)",type:"number"},
@@ -78,13 +91,63 @@ var esc=function(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){re
 function toast(t){var m=$("msg");m.textContent=t;m.className="on";setTimeout(function(){m.className=""},2200)}
 function today(){var d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
 function store(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){toast("Không lưu được vào bộ nhớ")}}
+function clone(o){return JSON.parse(JSON.stringify(o))}
+function uid(){return "c"+Date.now().toString(36)+Math.floor(Math.random()*1296).toString(36)}
+function curCrop(){return crops.filter(function(c){return c.id===cur})[0]||crops[0]}
+function setCur(id){cur=id;var c=curCrop();cur=c.id;S=c.fields;try{localStorage.setItem(UK,cur)}catch(e){}}
 function load(){
  try{rows=JSON.parse(localStorage.getItem(KEY)||"[]")}catch(e){rows=[]}
- try{S=JSON.parse(localStorage.getItem(SK)||"null")}catch(e){S=null}
- if(!Array.isArray(S)||!S.length)S=JSON.parse(JSON.stringify(DEF));
+ try{crops=JSON.parse(localStorage.getItem(CK)||"null")}catch(e){crops=null}
+ if(!Array.isArray(crops)||!crops.length){
+  var f=null;try{f=JSON.parse(localStorage.getItem(SK)||"null")}catch(e){}
+  crops=[{id:"c1",name:"Cây trồng 1",fields:(Array.isArray(f)&&f.length)?f:clone(DEF)}];store(CK,crops);
+ }
+ var mig=false;rows.forEach(function(r){if(!r._c){r._c=crops[0].id;mig=true}});if(mig)store(KEY,rows);
+ crops.forEach(function(c){if(!c.h){c.h=1;c.lots=c.lots||[];c.fields=c.fields.filter(function(f){return !((f.id==="lo"||f.id==="ma")&&!rows.some(function(r){return r._c===c.id&&r[f.id]}))});if(!c.fields.length)c.fields=clone(DEF)}});store(CK,crops);
+ var u="";try{u=localStorage.getItem(UK)||""}catch(e){}
+ setCur(u);
 }
 function opts(f){return String(f.opts||"").split(",").map(function(s){return s.trim()}).filter(Boolean)}
+function curRows(){var a=[];rows.forEach(function(r,i){if(r._c===cur)a.push(i)});return a}
 
+function lots(){var c=curCrop();return c.lots||(c.lots=[])}
+function lotOf(n){return lots().filter(function(l){return l.n===n})[0]}
+function range(n){var a=[];for(var i=1;i<=n;i++)a.push(i);return a}
+function op(v,s,t){return '<option value="'+esc(v)+'"'+(s?" selected":"")+'>'+esc(t)+'</option>'}
+function fixSel(){
+ var L=lots();if(!L.length){sel={lo:"",vt:1,cay:1};return}
+ var l=lotOf(sel.lo)||L[0];sel.lo=l.n;
+ sel.vt=Math.min(Math.max(+sel.vt||1,1),l.vt);sel.cay=Math.min(Math.max(+sel.cay||1,1),l.cay);
+}
+function dupNote(){
+ var n=0;if(sel.lo)rows.forEach(function(r){if(r._c===cur&&r._lo===sel.lo&&r._vt===sel.vt&&r._cay===sel.cay)n++});
+ $("dup").textContent=n?"Cây "+sel.vt+"."+sel.cay+" (lô "+sel.lo+") đã có "+n+" bản ghi (có thể là các ngày đo khác).":"";
+}
+function renderHier(){
+ fixSel();var L=lots();
+ if(!L.length){$("hg").innerHTML='<div class="full hint">Chưa có lô. Bấm ⚙ Tùy chỉnh để thêm lô, vị trí và số cây.</div>';$("dup").textContent="";return}
+ var l=lotOf(sel.lo);
+ $("hg").innerHTML='<div><label>Lô</label><select id="h_lo">'+L.map(function(x){return op(x.n,x.n===sel.lo,x.n)}).join("")+'</select></div>'+
+  '<div><label>Vị trí</label><select id="h_vt">'+range(l.vt).map(function(i){return op(i,i===sel.vt,i)}).join("")+'</select></div>'+
+  '<div class="full"><label>Cây (mã cây)</label><select id="h_cay">'+range(l.cay).map(function(i){return op(i,i===sel.cay,sel.vt+"."+i)}).join("")+'</select></div>';
+ dupNote();
+}
+function advance(){
+ var l=lotOf(sel.lo);if(!l)return;
+ if(sel.cay<l.cay)sel.cay++;else if(sel.vt<l.vt){sel.vt++;sel.cay=1}else toast("Đã lưu. Đã hết cây cuối của lô "+l.n);
+}
+function renderLots(){
+ $("ll").innerHTML=lots().map(function(l,i){
+  return '<div class="fr" data-j="'+i+'"><div class="grid"><div class="full"><label>Tên lô</label><input data-l="n" value="'+esc(l.n)+'"></div>'+
+  '<div><label>Số vị trí</label><input type="number" inputmode="numeric" min="1" data-l="vt" value="'+l.vt+'"></div>'+
+  '<div><label>Số cây mỗi vị trí</label><input type="number" inputmode="numeric" min="1" data-l="cay" value="'+l.cay+'"></div></div>'+
+  '<div class="ra"><button class="ghost" data-la="del">Xóa lô</button></div></div>';
+ }).join("");
+}
+function renderCrops(){
+ $("cs").innerHTML=crops.map(function(c){return '<option value="'+esc(c.id)+'"'+(c.id===cur?" selected":"")+'>'+esc(c.name)+'</option>'}).join("");
+ $("cname").value=curCrop().name;$("ft").textContent="Trường dữ liệu của: "+curCrop().name;
+}
 function renderForm(v){
  v=v||{};
  $("fg").innerHTML=S.map(function(f){
@@ -96,35 +159,53 @@ function renderForm(v){
   else h='<input id="'+id+'" type="'+(f.type==="number"?"number":f.type==="date"?"date":"text")+'"'+(f.type==="number"?' inputmode="decimal" step="any"':' autocomplete="off"')+' value="'+esc(x)+'">';
   return '<div class="'+w+'"><label>'+esc(f.name)+'</label>'+h+'</div>';
  }).join("");
+ voiceHint();
 }
 function collect(){var o={};S.forEach(function(f){var e=$("x_"+f.id);o[f.id]=e?String(e.value).trim():""});return o}
-
 function render(){
- $("count").textContent="Bản ghi ("+rows.length+")";
- $("th").innerHTML="<tr>"+S.map(function(f){return "<th>"+esc(f.name)+"</th>"}).join("")+"<th></th></tr>";
- if(!rows.length){$("tb").innerHTML='<tr><td colspan="'+(S.length+1)+'" class="empty">Chưa có dữ liệu</td></tr>';return}
- $("tb").innerHTML=rows.map(function(r,i){
-  return "<tr>"+S.map(function(f){return "<td>"+esc(r[f.id])+"</td>"}).join("")+'<td style="white-space:nowrap"><button class="ghost" style="color:var(--pri)" data-e="'+i+'">Sửa</button><button class="ghost" data-d="'+i+'">Xóa</button></td></tr>';
+ var ix=curRows();
+ $("count").textContent="Bản ghi — "+curCrop().name+" ("+ix.length+")";
+ $("th").innerHTML="<tr><th>Lô</th><th>Vị trí</th><th>Cây</th>"+S.map(function(f){return "<th>"+esc(f.name)+"</th>"}).join("")+"<th></th></tr>";
+ if(!ix.length){$("tb").innerHTML='<tr><td colspan="'+(S.length+4)+'" class="empty">Chưa có dữ liệu</td></tr>';return}
+ $("tb").innerHTML=ix.map(function(i){var r=rows[i];
+  return "<tr><td>"+esc(r._lo)+"</td><td>"+esc(r._vt)+"</td><td>"+(r._vt!=null&&r._cay!=null?esc(r._vt+"."+r._cay):"")+"</td>"+S.map(function(f){return "<td>"+esc(r[f.id])+"</td>"}).join("")+'<td style="white-space:nowrap"><button class="ghost" style="color:var(--pri)" data-e="'+i+'">Sửa</button><button class="ghost" data-d="'+i+'">Xóa</button></td></tr>';
  }).reverse().join("");
 }
-function endEdit(v){editing=-1;$("cancel").style.display="none";$("save").textContent="Lưu bản ghi";renderForm(v)}
+function endEdit(v){editing=-1;if(prevSel){sel=prevSel;prevSel=null}renderHier();$("cancel").style.display="none";$("save").textContent="Lưu bản ghi";renderForm(v)}
 
 $("save").onclick=function(){
  var o=collect();
  if(!S.some(function(f){return f.type!=="date"&&o[f.id]})){toast("Hãy nhập ít nhất một giá trị");return}
- if(editing>=0){rows[editing]=Object.assign({},rows[editing],o);toast("Đã cập nhật")}else{rows.push(o);toast("Đã lưu")}
- store(KEY,rows);render();
+ var was=editing>=0;if(lots().length){o._lo=sel.lo;o._vt=sel.vt;o._cay=sel.cay}
+ if(was){rows[editing]=Object.assign({},rows[editing],o);toast("Đã cập nhật")}else{o._c=cur;rows.push(o);toast("Đã lưu")}
+ store(KEY,rows);if(!was)advance();render();
  var k={};S.forEach(function(f){if(f.keep)k[f.id]=o[f.id]});endEdit(k);
 };
 $("cancel").onclick=function(){endEdit()};
 $("tb").onclick=function(e){
  var t=e.target,a=t.getAttribute("data-e"),d=t.getAttribute("data-d");
- if(a!==null){editing=+a;renderForm(rows[editing]);$("cancel").style.display="";$("save").textContent="Cập nhật";window.scrollTo({top:0,behavior:"smooth"})}
+ if(a!==null){editing=+a;var rr=rows[editing];prevSel=Object.assign({},sel);if(rr._lo)sel={lo:rr._lo,vt:rr._vt,cay:rr._cay};renderHier();renderForm(rr);$("cancel").style.display="";$("save").textContent="Cập nhật";window.scrollTo({top:0,behavior:"smooth"})}
  else if(d!==null&&confirm("Xóa bản ghi này?")){rows.splice(+d,1);store(KEY,rows);render();endEdit(collect())}
 };
-$("clr").onclick=function(){if(rows.length&&confirm("Xóa toàn bộ "+rows.length+" bản ghi? Hãy xuất Excel trước nếu cần giữ.")){rows=[];store(KEY,rows);render()}};
+$("clr").onclick=function(){var n=curRows().length;if(n&&confirm("Xóa toàn bộ "+n+' bản ghi của cây "'+curCrop().name+'"? Hãy xuất Excel trước nếu cần giữ.')){rows=rows.filter(function(r){return r._c!==cur});store(KEY,rows);render()}};
 
-/* ---- Tùy chỉnh trường ---- */
+/* ---- Cây trồng ---- */
+$("cs").onchange=function(){setCur($("cs").value);sel={lo:"",vt:1,cay:1};prevSel=null;renderCrops();endEdit();render();if(!$("cfgp").hidden){renderCfg();renderLots()}};
+$("cname").onchange=function(){var n=$("cname").value.trim();if(n){curCrop().name=n;store(CK,crops)}renderCrops();render()};
+$("addc").onclick=function(){
+ var n=(prompt("Tên cây trồng mới:")||"").trim();if(!n)return;
+ var c={id:uid(),name:n,fields:clone(S),lots:clone(lots()),h:1};crops.push(c);store(CK,crops);setCur(c.id);sel={lo:"",vt:1,cay:1};prevSel=null;
+ renderCrops();endEdit();render();renderCfg();renderLots();toast("Đã tạo. Hãy chỉnh các trường cho cây này");
+};
+$("delc").onclick=function(){
+ if(crops.length<2){toast("Cần giữ ít nhất 1 cây trồng");return}
+ var n=curRows().length;
+ if(!confirm('Xóa cây "'+curCrop().name+'" và '+n+" bản ghi của cây này? Hãy xuất Excel trước nếu cần giữ."))return;
+ rows=rows.filter(function(r){return r._c!==cur});crops=crops.filter(function(c){return c.id!==cur});
+ store(KEY,rows);store(CK,crops);setCur(crops[0].id);sel={lo:"",vt:1,cay:1};prevSel=null;renderCrops();endEdit();render();renderCfg();renderLots();
+};
+
+/* ---- Trường dữ liệu của cây đang chọn ---- */
 function renderCfg(){
  $("cl").innerHTML=S.map(function(f,i){
   return '<div class="fr" data-i="'+i+'"><input data-k="name" value="'+esc(f.name)+'">'+
@@ -134,15 +215,17 @@ function renderCfg(){
   '<div class="ra"><button class="sec sm" data-a="up">↑</button><button class="sec sm" data-a="dn">↓</button><button class="ghost" data-a="del">Xóa trường</button></div></div>';
  }).join("");
 }
-function applyCfg(){store(SK,S);renderCfg();renderForm(collect());render()}
-$("cfg").onclick=function(){$("cfgp").hidden=false;renderCfg();$("cfgp").scrollIntoView({behavior:"smooth"})};
+function applyCfg(){store(CK,crops);renderCfg();renderForm(collect());render()}
+$("cfg").onclick=function(){$("cfgp").hidden=false;renderCrops();renderLots();renderCfg();$("cfgp").scrollIntoView({behavior:"smooth"})};
 $("cfgx").onclick=function(){$("cfgp").hidden=true};
 $("cl").onchange=function(e){
  var t=e.target,r=t.closest(".fr"),k=t.getAttribute("data-k");if(!r||!k)return;
  var f=S[+r.getAttribute("data-i")];
  f[k]=k==="keep"?(t.checked?1:0):t.value;
  if(k==="name"&&!String(f.name).trim())f.name="Trường";
- if(k==="type"||k==="opts"||k==="name"){store(SK,S);if(k==="type")renderCfg();renderForm(collect());render()}else store(SK,S);
+ store(CK,crops);
+ if(k==="type")renderCfg();
+ if(k!=="keep"){renderForm(collect());render()}
 };
 $("cl").onclick=function(e){
  var a=e.target.getAttribute("data-a");if(!a)return;
@@ -157,7 +240,81 @@ $("cl").onclick=function(e){
  applyCfg();
 };
 $("add").onclick=function(){S.push({id:"f"+Date.now().toString(36),name:"Trường mới",type:"text"});applyCfg()};
-$("rst").onclick=function(){if(confirm("Đưa danh sách trường về mặc định? Dữ liệu đã nhập không bị xóa.")){S=JSON.parse(JSON.stringify(DEF));applyCfg()}};
+$("rst").onclick=function(){if(confirm("Đưa trường của cây này về mặc định? Dữ liệu đã nhập không bị xóa.")){curCrop().fields=clone(DEF);S=curCrop().fields;applyCfg()}};
+
+/* ---- Lô / Vị trí / Cây ---- */
+$("hg").onchange=function(e){var t=e.target;
+ if(t.id==="h_lo"){sel.lo=t.value;sel.vt=1;sel.cay=1}else if(t.id==="h_vt"){sel.vt=+t.value;sel.cay=1}else if(t.id==="h_cay")sel.cay=+t.value;
+ renderHier()};
+$("ll").onchange=function(e){
+ var t=e.target,r=t.closest(".fr"),k=t.getAttribute("data-l");if(!r||!k)return;
+ var l=lots()[+r.getAttribute("data-j")],old=l.n;
+ if(k==="n"){var n=t.value.trim();
+  if(!n||lots().some(function(x){return x!==l&&x.n===n})){toast("Tên lô trống hoặc bị trùng");t.value=l.n;return}
+  l.n=n;rows.forEach(function(x){if(x._c===cur&&x._lo===old)x._lo=n});store(KEY,rows);if(sel.lo===old)sel.lo=n;
+ }else{l[k]=Math.min(Math.max(parseInt(t.value,10)||1,1),k==="vt"?200:99);t.value=l[k]}
+ store(CK,crops);renderHier();render()};
+$("ll").onclick=function(e){
+ if(e.target.getAttribute("data-la")!=="del")return;
+ var j=+e.target.closest(".fr").getAttribute("data-j"),l=lots()[j];
+ if(!confirm('Xóa lô "'+l.n+'" khỏi danh sách? Các bản ghi đã nhập của lô này vẫn được giữ.'))return;
+ lots().splice(j,1);store(CK,crops);renderLots();renderHier()};
+$("addl").onclick=function(){
+ var n=(prompt("Tên lô (ví dụ 2D):")||"").trim();if(!n)return;
+ if(lots().some(function(x){return x.n===n})){toast("Lô này đã có");return}
+ var p=lots()[lots().length-1];
+ lots().push({n:n,vt:p?p.vt:1,cay:p?p.cay:1});store(CK,crops);renderLots();renderHier();toast("Đã thêm lô. Hãy nhập số vị trí và số cây")};
+
+/* ---- Nhập bằng giọng nói (cần mạng, dùng nhận dạng giọng nói của Chrome) ---- */
+function nzr(s){return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/đ/g,"d")}
+function blank(s,a,b){return s.slice(0,a)+new Array(b-a+1).join(" ")+s.slice(b)}
+function fkey(f){return nzr(f.name.replace(/\(.*?\)/g,"")).replace(/\s+/g," ").trim()}
+function voiceHint(){
+ var a=S.filter(function(f){return f.type==="number"}).slice(0,2).map(function(f){return f.name.replace(/\(.*?\)/g,"").trim().toLowerCase()});
+ var ex=(lots().length?"vị trí 2 cây 3 ":"")+(a[0]?a[0]+" 12 phẩy 5 ":"")+(a[1]?a[1]+" 8 ":"")+"lưu";
+ $("vhint").textContent='Nói tên trường rồi đến giá trị, ví dụ: "'+ex+'". Nói "lô 2D" khi đổi lô. Kết thúc bằng "lưu" để tự lưu.';
+}
+function applyVoice(raw){
+ var o=raw.normalize("NFC"),t=nzr(o),got=[],go=false,hh=false,m;
+ function cut(mm){o=blank(o,mm.index,mm.index+mm[0].length);t=blank(t,mm.index,mm.index+mm[0].length)}
+ m=/(?<![a-z0-9])luu(\s+lai)?\s*$/.exec(t);if(m){go=true;cut(m)}
+ var L=lots();
+ if(L.length){
+  m=/(?<![a-z0-9])lo\s+([a-z0-9]+(?:\s[a-z](?![a-z0-9]))?)/.exec(t);
+  if(m){var nm=m[1].replace(/\s/g,""),l=L.filter(function(x){return nzr(x.n).replace(/\s/g,"")===nm})[0];if(l){sel.lo=l.n;sel.vt=1;sel.cay=1;hh=true;cut(m)}}
+  m=/(?<![a-z0-9])vi tri\s+(\d+)/.exec(t);if(m){sel.vt=+m[1];sel.cay=1;hh=true;cut(m)}
+  m=/(?<![a-z0-9])cay\s+(\d+)/.exec(t);if(m){sel.cay=+m[1];hh=true;cut(m)}
+  renderHier();if(hh)got.push("Lô "+sel.lo+", cây "+sel.vt+"."+sel.cay);
+ }
+ var occ=[],ents=[];
+ S.filter(function(f){return f.type!=="date"}).map(function(f){return{f:f,k:fkey(f)}}).filter(function(e){return e.k}).sort(function(a,b){return b.k.length-a.k.length}).forEach(function(e){
+  var mm=new RegExp("(?<![a-z0-9])"+e.k.replace(/[.*+?^${}()|[\]\\\/]/g,"\\$&")+"(?![a-z0-9])").exec(t);if(!mm)return;
+  var a=mm.index,b=a+mm[0].length;if(occ.some(function(r){return a<r[1]&&b>r[0]}))return;
+  occ.push([a,b]);ents.push({f:e.f,a:a,b:b});
+ });
+ ents.sort(function(x,y){return x.a-y.a});
+ ents.forEach(function(e,i){
+  var end=i+1<ents.length?ents[i+1].a:t.length,vt=t.slice(e.b,end),vo=o.slice(e.b,end).trim().replace(/^[:,.\s]+|[,\s]+$/g,""),f=e.f,v="";
+  if(f.type==="number"){var mn=/\d+(\.\d+)?/.exec(vt.replace(/(\d)\s*(phay|cham|,)\s*(?=\d)/g,"$1."));if(mn)v=mn[0]}
+  else if(f.type==="select"){var so=opts(f).filter(function(x){return vt.indexOf(nzr(x))>=0})[0];if(so)v=so}
+  else v=vo;
+  if(v!==""){var el=document.getElementById("x_"+f.id);if(el){el.value=v;got.push(f.name.replace(/\(.*?\)/g,"").trim()+": "+v)}}
+ });
+ $("vsay").textContent='Nghe: "'+raw+'" → '+(got.length?"Đã điền: "+got.join("; "):"Không nhận ra trường nào. Hãy nói tên trường rồi đến giá trị.");
+ if(go&&got.length)$("save").onclick();
+}
+var SR=window.SpeechRecognition||window.webkitSpeechRecognition,rec=null,on=false;
+if(!SR){$("mic").style.display="none";$("vsay").textContent="Trình duyệt này chưa hỗ trợ nhập bằng giọng nói. Hãy mở bằng Chrome."}
+$("mic").onclick=function(){
+ if(on&&rec){rec.stop();return}
+ rec=new SR();rec.lang="vi-VN";rec.interimResults=true;rec.continuous=false;rec.maxAlternatives=1;
+ var fin="",ERR={"not-allowed":"Chưa cho phép micro. Hãy cấp quyền micro cho trang này.","service-not-allowed":"Chưa cho phép micro. Hãy cấp quyền micro cho trang này.","no-speech":"Không nghe thấy gì, hãy thử lại.","network":"Cần có mạng để nhận dạng giọng nói.","audio-capture":"Không tìm thấy micro."};
+ rec.onstart=function(){on=true;$("mic").textContent="⏹ Đang nghe... (bấm để dừng)";$("vsay").textContent=""};
+ rec.onresult=function(e){var x="";for(var i=0;i<e.results.length;i++)x+=e.results[i][0].transcript;fin=x;$("vsay").textContent="Nghe: "+x};
+ rec.onerror=function(e){toast(ERR[e.error]||"Lỗi giọng nói: "+e.error)};
+ rec.onend=function(){on=false;$("mic").textContent="🎤 Nói để nhập";if(fin)applyVoice(fin)};
+ try{rec.start()}catch(e){on=false}
+};
 
 /* ---- Trình tạo .xlsx tự viết (không cần thư viện, chạy offline) ---- */
 var CT=(function(){var t=[],c,n,k;for(n=0;n<256;n++){c=n;for(k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
@@ -183,30 +340,44 @@ function zip(files){
 }
 function xe(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]}).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,"")}
 function colL(n){var s="";n++;while(n>0){var m=(n-1)%26;s=String.fromCharCode(65+m)+s;n=Math.floor((n-1)/26)}return s}
-function xlsx(){
- var data=[S.map(function(f){return f.name})].concat(rows.map(function(r){return S.map(function(f){return r[f.id]})}));
+var XH='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
+function sheetXml(F,R){
+ var data=[F.map(function(f){return f.name})].concat(R.map(function(r){return F.map(function(f){return r[f.id]})}));
  var sd=data.map(function(row,ri){return '<row r="'+(ri+1)+'">'+row.map(function(v,ci){
-  var f=S[ci],ref=colL(ci)+(ri+1);
+  var f=F[ci],ref=colL(ci)+(ri+1);
   if(ri>0&&f.type==="number"&&v!==""&&v!=null&&!isNaN(v))return '<c r="'+ref+'"><v>'+Number(v)+'</v></c>';
   return '<c r="'+ref+'" t="inlineStr"><is><t xml:space="preserve">'+xe(v==null?"":v)+'</t></is></c>'}).join("")+'</row>'}).join("");
- var cols='<cols>'+S.map(function(f,i){return '<col min="'+(i+1)+'" max="'+(i+1)+'" width="'+(f.type==="long"?30:16)+'" customWidth="1"/>'}).join("")+'</cols>';
- var X='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
- return zip([
-  ["[Content_Types].xml",X+'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>'],
-  ["_rels/.rels",X+'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'],
-  ["xl/workbook.xml",X+'<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="DuLieuCayTrong" sheetId="1" r:id="rId1"/></sheets></workbook>'],
-  ["xl/_rels/workbook.xml.rels",X+'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>'],
-  ["xl/worksheets/sheet1.xml",X+'<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'+cols+'<sheetData>'+sd+'</sheetData></worksheet>']
- ]);
+ var cols='<cols>'+F.map(function(f,i){return '<col min="'+(i+1)+'" max="'+(i+1)+'" width="'+(f.type==="long"?30:16)+'" customWidth="1"/>'}).join("")+'</cols>';
+ return XH+'<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'+cols+'<sheetData>'+sd+'</sheetData></worksheet>';
 }
+var hf=[{id:"_lo",name:"Lô",type:"text"},{id:"_vt",name:"Vị trí",type:"number"},{id:"_mc",name:"Mã cây",type:"text"}];
+function exr(R){return R.map(function(r){return Object.assign({_mc:(r._vt!=null&&r._cay!=null)?r._vt+"."+r._cay:""},r)})}
+function xlsx(sh){
+ var used={},nm=sh.map(function(s,i){
+  var n=String(s.name).replace(/[\[\]:*?\/\\]/g," ").trim().slice(0,28)||"Sheet"+(i+1),b=n,k=2;
+  while(used[n.toLowerCase()]){n=b+" "+k++}used[n.toLowerCase()]=1;return n});
+ var R="http://schemas.openxmlformats.org/officeDocument/2006/relationships",files=[
+  ["[Content_Types].xml",XH+'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'+sh.map(function(s,i){return '<Override PartName="/xl/worksheets/sheet'+(i+1)+'.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'}).join("")+'</Types>'],
+  ["_rels/.rels",XH+'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="'+R+'/officeDocument" Target="xl/workbook.xml"/></Relationships>'],
+  ["xl/workbook.xml",XH+'<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="'+R+'"><sheets>'+nm.map(function(n,i){return '<sheet name="'+xe(n)+'" sheetId="'+(i+1)+'" r:id="rId'+(i+1)+'"/>'}).join("")+'</sheets></workbook>'],
+  ["xl/_rels/workbook.xml.rels",XH+'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+sh.map(function(s,i){return '<Relationship Id="rId'+(i+1)+'" Type="'+R+'/worksheet" Target="worksheets/sheet'+(i+1)+'.xml"/>'}).join("")+'</Relationships>']];
+ sh.forEach(function(s,i){files.push(["xl/worksheets/sheet"+(i+1)+".xml",sheetXml(hf.concat(s.fields),exr(s.rows))])});
+ return zip(files);
+}
+function slug(s){return String(s).normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/đ/gi,"d").replace(/[^a-z0-9]+/gi,"-").replace(/^-+|-+$/g,"").toLowerCase()||"cay"}
+function dl(b,name){var a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(a.href)},4000);toast("Đã xuất Excel")}
+function rowsOf(id){return rows.filter(function(r){return r._c===id})}
 $("exp").onclick=function(){
- if(!rows.length){toast("Chưa có dữ liệu để xuất");return}
- var b=xlsx(),a=document.createElement("a");
- a.href=URL.createObjectURL(b);a.download="du-lieu-cay-trong-"+today()+".xlsx";
- document.body.appendChild(a);a.click();a.remove();
- setTimeout(function(){URL.revokeObjectURL(a.href)},4000);toast("Đã xuất Excel");
+ var r=rowsOf(cur);if(!r.length){toast("Cây này chưa có dữ liệu");return}
+ dl(xlsx([{name:curCrop().name,fields:S,rows:r}]),"du-lieu-"+slug(curCrop().name)+"-"+today()+".xlsx");
 };
-load();renderForm();render();
+$("expall").onclick=function(){
+ var sh=crops.map(function(c){return{name:c.name,fields:c.fields,rows:rowsOf(c.id)}}).filter(function(s){return s.rows.length});
+ if(!sh.length){toast("Chưa có dữ liệu để xuất");return}
+ dl(xlsx(sh),"du-lieu-tat-ca-cay-"+today()+".xlsx");
+};
+$("cs").onchange=$("cs").onchange;
+load();renderCrops();renderHier();renderForm();render();
 if("serviceWorker" in navigator&&location.protocol.indexOf("http")===0)navigator.serviceWorker.register("sw.js").catch(function(){});
 })();
 </script>
