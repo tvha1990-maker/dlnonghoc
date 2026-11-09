@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2f7d3a">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<title>Nhập liệu cây trồng</title>
+<style>
+:root{--bg:#f6f7f3;--card:#fff;--tx:#1d2a1f;--mut:#667366;--pri:#2f7d3a;--pri-tx:#fff;--bd:#dde3d8;--dng:#b3261e;color-scheme:light}
+@media (prefers-color-scheme:dark){:root{--bg:#121712;--card:#1c241d;--tx:#e8efe6;--mut:#9aa89a;--pri:#5fb86b;--pri-tx:#0c1a0e;--bd:#2c382d;--dng:#f2867f;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.4 system-ui,Roboto,sans-serif;padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0)}
+main{max-width:640px;margin:0 auto;padding:16px}
+h1{font-size:20px;margin:4px 0 14px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:14px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.full{grid-column:1/-1}
+label{display:block;font-size:13px;color:var(--mut);margin-bottom:3px}
+input,select,textarea{width:100%;padding:11px;border:1px solid var(--bd);border-radius:10px;background:var(--bg);color:var(--tx);font:inherit}
+button{font:inherit;border:0;border-radius:10px;padding:12px 14px;background:var(--pri);color:var(--pri-tx);font-weight:600}
+button.sec{background:transparent;color:var(--pri);border:1px solid var(--pri)}
+button.ghost{background:none;color:var(--dng);padding:6px 8px;font-weight:500}
+.row{display:flex;gap:10px;margin-top:12px}.row button{flex:1}
+.head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px;white-space:nowrap}
+th,td{padding:7px 8px;border-bottom:1px solid var(--bd);text-align:left}th{color:var(--mut)}
+.empty{color:var(--mut);text-align:center;padding:18px 0}
+#msg{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--tx);color:var(--bg);padding:10px 16px;border-radius:20px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s}
+#msg.on{opacity:1}
+</style>
+</head>
+<body>
+<main>
+<h1>🌱 Nhập liệu cây trồng</h1>
+<form class="card" onsubmit="return false">
+ <div class="grid">
+  <div><label>Ngày đo</label><input type="date" id="ngay"></div>
+  <div><label>Loại cây</label><input id="loai" placeholder="VD: Dứa MD2" autocomplete="off"></div>
+  <div><label>Lô / Công thức</label><input id="lo" placeholder="VD: T1-R2" autocomplete="off"></div>
+  <div><label>Mã cây</label><input id="ma" autocomplete="off"></div>
+  <div><label>Chiều cao (cm)</label><input type="number" inputmode="decimal" id="cao" step="any"></div>
+  <div><label>Số lá</label><input type="number" inputmode="numeric" id="la"></div>
+  <div><label>Đường kính thân (mm)</label><input type="number" inputmode="decimal" id="dk" step="any"></div>
+  <div><label>Giai đoạn</label><select id="gd"><option>Cây con</option><option>Sinh trưởng</option><option>Ra hoa</option><option>Đậu quả</option><option>Thu hoạch</option></select></div>
+  <div class="full"><label>Ghi chú</label><textarea id="gc" rows="2"></textarea></div>
+ </div>
+ <div class="row"><button id="save">Lưu bản ghi</button><button class="sec" id="cancel" style="display:none">Hủy sửa</button></div>
+</form>
+<section class="card">
+ <div class="head"><b id="count"></b><button id="exp" class="sec">Xuất Excel</button></div>
+ <div class="scroll"><table><thead><tr><th>Ngày</th><th>Cây</th><th>Lô</th><th>Mã</th><th>Cao</th><th>Lá</th><th>ĐK</th><th></th></tr></thead><tbody id="tb"></tbody></table></div>
+ <div class="row"><button class="ghost" id="clr">Xóa toàn bộ</button></div>
+</section>
+</main>
+<div id="msg"></div>
+<script>
+(function(){
+var KEY="cropdata_v1",rows=[],editing=-1,KEEP=["ngay","loai","lo","gd"];
+var F=["ngay","loai","lo","ma","cao","la","dk","gd","gc"];
+var H=["Ngày","Loại cây","Lô/Công thức","Mã cây","Chiều cao (cm)","Số lá","Đường kính (mm)","Giai đoạn","Ghi chú"];
+var NUM={cao:1,la:1,dk:1};
+var $=function(i){return document.getElementById(i)};
+function load(){try{rows=JSON.parse(localStorage.getItem(KEY)||"[]")}catch(e){rows=[]}}
+function persist(){try{localStorage.setItem(KEY,JSON.stringify(rows))}catch(e){toast("Không lưu được vào bộ nhớ")}}
+function toast(t){var m=$("msg");m.textContent=t;m.className="on";setTimeout(function(){m.className=""},2200)}
+function today(){var d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+function esc(s){var d=document.createElement("div");d.textContent=s==null?"":s;return d.innerHTML}
+function render(){
+ $("count").textContent="Bản ghi ("+rows.length+")";
+ if(!rows.length){$("tb").innerHTML='<tr><td colspan="8" class="empty">Chưa có dữ liệu</td></tr>';return}
+ $("tb").innerHTML=rows.map(function(r,i){return "<tr><td>"+esc(r.ngay)+"</td><td>"+esc(r.loai)+"</td><td>"+esc(r.lo)+"</td><td>"+esc(r.ma)+"</td><td>"+esc(r.cao)+"</td><td>"+esc(r.la)+"</td><td>"+esc(r.dk)+'</td><td style="white-space:nowrap"><button class="ghost" style="color:var(--pri)" data-e="'+i+'">Sửa</button><button class="ghost" data-d="'+i+'">Xóa</button></td></tr>'}).reverse().join("");
+}
+function resetForm(){F.forEach(function(k){if(KEEP.indexOf(k)<0)$(k).value=""});if(!$("ngay").value)$("ngay").value=today();editing=-1;$("cancel").style.display="none";$("save").textContent="Lưu bản ghi"}
+$("save").onclick=function(){
+ var o={};F.forEach(function(k){o[k]=$(k).value.trim()});
+ if(!o.ngay||!o.ma){toast("Cần nhập Ngày và Mã cây");return}
+ if(editing>=0){rows[editing]=o;toast("Đã cập nhật")}else{rows.push(o);toast("Đã lưu")}
+ persist();render();resetForm();
+};
+$("cancel").onclick=resetForm;
+$("tb").onclick=function(e){var t=e.target,a=t.getAttribute("data-e"),d=t.getAttribute("data-d");
+ if(a!==null){var r=rows[+a];F.forEach(function(k){$(k).value=r[k]||""});editing=+a;$("cancel").style.display="";$("save").textContent="Cập nhật";window.scrollTo({top:0,behavior:"smooth"})}
+ else if(d!==null&&confirm("Xóa bản ghi này?")){rows.splice(+d,1);persist();render();resetForm()}};
+$("clr").onclick=function(){if(rows.length&&confirm("Xóa toàn bộ "+rows.length+" bản ghi? Hãy xuất Excel trước nếu cần giữ.")){rows=[];persist();render()}};
+
+/* ---- Trình tạo .xlsx tự viết (không cần thư viện, chạy offline) ---- */
+var CT=(function(){var t=[],c,n,k;for(n=0;n<256;n++){c=n;for(k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
+function crc(b){var c=0xFFFFFFFF;for(var i=0;i<b.length;i++)c=CT[(c^b[i])&255]^(c>>>8);return(c^0xFFFFFFFF)>>>0}
+function zip(files){
+ var enc=new TextEncoder(),parts=[],cen=[],off=0;
+ files.forEach(function(f){
+  var nm=enc.encode(f[0]),d=enc.encode(f[1]),c=crc(d);
+  var h=new DataView(new ArrayBuffer(30));
+  h.setUint32(0,0x04034b50,true);h.setUint16(4,20,true);h.setUint16(6,0x0800,true);h.setUint16(8,0,true);
+  h.setUint32(14,c,true);h.setUint32(18,d.length,true);h.setUint32(22,d.length,true);h.setUint16(26,nm.length,true);
+  parts.push(new Uint8Array(h.buffer),nm,d);
+  var g=new DataView(new ArrayBuffer(46));
+  g.setUint32(0,0x02014b50,true);g.setUint16(4,20,true);g.setUint16(6,20,true);g.setUint16(8,0x0800,true);
+  g.setUint32(16,c,true);g.setUint32(20,d.length,true);g.setUint32(24,d.length,true);g.setUint16(28,nm.length,true);g.setUint32(42,off,true);
+  cen.push(new Uint8Array(g.buffer),nm);
+  off+=30+nm.length+d.length;
+ });
+ var cs=0;cen.forEach(function(x){cs+=x.length});
+ var e=new DataView(new ArrayBuffer(22));
+ e.setUint32(0,0x06054b50,true);e.setUint16(8,files.length,true);e.setUint16(10,files.length,true);e.setUint32(12,cs,true);e.setUint32(16,off,true);
+ return new Blob(parts.concat(cen,[new Uint8Array(e.buffer)]),{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+}
+function x(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]}).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,"")}
+function xlsx(){
+ var L="ABCDEFGHI",data=[H].concat(rows.map(function(r){return F.map(function(k){return r[k]})}));
+ var sd=data.map(function(row,ri){return '<row r="'+(ri+1)+'">'+row.map(function(v,ci){
+  var ref=L[ci]+(ri+1),key=F[ci];
+  if(ri>0&&NUM[key]&&v!==""&&v!=null&&!isNaN(v))return '<c r="'+ref+'"><v>'+Number(v)+'</v></c>';
+  return '<c r="'+ref+'" t="inlineStr"><is><t xml:space="preserve">'+x(v==null?"":v)+'</t></is></c>'}).join("")+'</row>'}).join("");
+ var cols='<cols>'+[12,16,14,10,14,8,16,14,30].map(function(w,i){return '<col min="'+(i+1)+'" max="'+(i+1)+'" width="'+w+'" customWidth="1"/>'}).join("")+'</cols>';
+ var X='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
+ return zip([
+  ["[Content_Types].xml",X+'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>'],
+  ["_rels/.rels",X+'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'],
+  ["xl/workbook.xml",X+'<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="DuLieuCayTrong" sheetId="1" r:id="rId1"/></sheets></workbook>'],
+  ["xl/_rels/workbook.xml.rels",X+'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>'],
+  ["xl/worksheets/sheet1.xml",X+'<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'+cols+'<sheetData>'+sd+'</sheetData></worksheet>']
+ ]);
+}
+$("exp").onclick=function(){
+ if(!rows.length){toast("Chưa có dữ liệu để xuất");return}
+ var b=xlsx(),a=document.createElement("a");
+ a.href=URL.createObjectURL(b);a.download="du-lieu-cay-trong-"+today()+".xlsx";
+ document.body.appendChild(a);a.click();a.remove();
+ setTimeout(function(){URL.revokeObjectURL(a.href)},4000);toast("Đã xuất Excel");
+};
+load();$("ngay").value=today();render();
+if("serviceWorker" in navigator&&location.protocol.indexOf("http")===0)navigator.serviceWorker.register("sw.js").catch(function(){});
+})();
+</script>
+</body>
+</html>
