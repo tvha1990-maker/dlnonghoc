@@ -11,13 +11,19 @@
 :root{--bg:#f6f7f3;--card:#fff;--tx:#1d2a1f;--mut:#667366;--pri:#2f7d3a;--pri-tx:#fff;--bd:#dde3d8;--dng:#b3261e;color-scheme:light}
 @media (prefers-color-scheme:dark){:root{--bg:#121712;--card:#1c241d;--tx:#e8efe6;--mut:#9aa89a;--pri:#5fb86b;--pri-tx:#0c1a0e;--bd:#2c382d;--dng:#f2867f;color-scheme:dark}}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.4 system-ui,Roboto,sans-serif;padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0)}
+:root{--fs:16px;--ip:11px;--gap:10px}
+:root[data-theme="light"]{--bg:#f6f7f3;--card:#fff;--tx:#1d2a1f;--mut:#667366;--bd:#dde3d8;--dng:#b3261e;color-scheme:light}
+:root[data-theme="dark"]{--bg:#121712;--card:#1c241d;--tx:#e8efe6;--mut:#9aa89a;--bd:#2c382d;--dng:#f2867f;color-scheme:dark}
+.sw{display:flex;gap:10px;flex-wrap:wrap}
+.sw button{width:34px;height:34px;border-radius:50%;padding:0;border:2px solid transparent}
+.sw button.on{border-color:var(--tx);box-shadow:inset 0 0 0 2px var(--card)}
+body{margin:0;background:var(--bg);color:var(--tx);font:var(--fs)/1.4 system-ui,Roboto,sans-serif;padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0)}
 main{max-width:640px;margin:0 auto;padding:16px}
 h1{font-size:20px;margin:4px 0 14px;display:flex;justify-content:space-between;align-items:center;gap:8px}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:14px}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.full{grid-column:1/-1}
-label{display:block;font-size:13px;color:var(--mut);margin-bottom:3px}
-input,select,textarea{width:100%;padding:11px;border:1px solid var(--bd);border-radius:10px;background:var(--bg);color:var(--tx);font:inherit}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:var(--gap)}.full{grid-column:1/-1}
+label{display:block;font-size:calc(var(--fs) - 3px);color:var(--mut);margin-bottom:3px}
+input,select,textarea{width:100%;padding:var(--ip);border:1px solid var(--bd);border-radius:10px;background:var(--bg);color:var(--tx);font:inherit}
 button{font:inherit;border:0;border-radius:10px;padding:12px 14px;background:var(--pri);color:var(--pri-tx);font-weight:600}
 button.sec{background:transparent;color:var(--pri);border:1px solid var(--pri)}
 button.sm{padding:7px 11px;font-size:14px}
@@ -25,7 +31,7 @@ button.ghost{background:none;color:var(--dng);padding:6px 8px;font-weight:500}
 .row{display:flex;gap:10px;margin-top:12px}.row button{flex:1}
 .head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 .scroll{overflow-x:auto}
-table{border-collapse:collapse;width:100%;font-size:13px;white-space:nowrap}
+table{border-collapse:collapse;width:100%;font-size:calc(var(--fs) - 3px);white-space:nowrap}
 th,td{padding:7px 8px;border-bottom:1px solid var(--bd);text-align:left}th{color:var(--mut)}
 .empty{color:var(--mut);text-align:center;padding:18px 0}
 .fr{border:1px solid var(--bd);border-radius:10px;padding:10px;margin-bottom:10px;display:grid;gap:8px}
@@ -41,6 +47,29 @@ th,td{padding:7px 8px;border-bottom:1px solid var(--bd);text-align:left}th{color
 .mb{background:var(--card);border-radius:14px;padding:16px;max-width:420px;width:100%}
 button.danger{background:var(--dng);color:#fff}
 button:disabled{opacity:.4}
+.grid.fg{grid-template-columns:repeat(var(--cols,2),minmax(0,1fr))}
+.cp main{padding:8px}
+.cp h1{font-size:16px;margin:0 0 6px}
+.cp .card{padding:8px;margin-bottom:8px;border-radius:10px}
+.cp label{margin-bottom:1px;font-size:calc(var(--fs) - 4px)}
+.cp .row{margin-top:8px}
+.cp input,.cp select,.cp textarea{padding:max(5px,calc(var(--ip) - 4px))}
+.cp button{padding:8px 11px}
+.cp button.icon,.cp .sw button{padding:0}
+.cp #vhint{display:none}
+.cp .head{margin-bottom:4px}
+.cp table{white-space:normal;word-break:break-word;font-size:calc(var(--fs) - 4px)}
+.cp th,.cp td{padding:4px 3px}
+.cp .scroll{overflow-x:visible}
+.cp .ghost{padding:2px 6px}
+.fit,.fit body{height:100%}
+.fit body{overflow:hidden}
+.fit main{height:100vh;height:100dvh;display:flex;flex-direction:column;overflow:hidden}
+.fit form.card{flex:0 1 auto;min-height:0;overflow:auto;max-height:62%}
+.fit #lc{flex:1 1 0;min-height:90px;display:flex;flex-direction:column;margin-bottom:0}
+.fit #lc .scroll{flex:1 1 0;min-height:0;overflow:auto}
+.fit th{position:sticky;top:0;background:var(--card)}
+.fit #cfgp:not([hidden]){position:fixed;inset:0;z-index:15;overflow:auto;margin:0;border-radius:0}
 </style>
 </head>
 <body>
@@ -50,6 +79,17 @@ button:disabled{opacity:.4}
 
 <section class="card" id="cfgp" hidden>
  <div class="head"><b>Tùy chỉnh</b><button id="cfgx" class="sec sm">Đóng</button></div>
+<b>Giao diện</b>
+ <div class="grid" style="margin:8px 0 14px">
+  <div><label>Chế độ</label><select id="ui_theme"><option value="auto">Theo điện thoại</option><option value="light">Sáng</option><option value="dark">Tối</option></select></div>
+  <div><label>Cỡ chữ</label><select id="ui_fs"><option value="14">Nhỏ</option><option value="16">Vừa</option><option value="18">Lớn</option><option value="20">Rất lớn</option></select></div>
+  <div><label>Kích cỡ ô nhập</label><select id="ui_dens"><option value="s">Gọn</option><option value="m">Vừa</option><option value="l">Rộng</option></select></div>
+  <div><label>Bố cục</label><select id="ui_lay"><option value="std">Chuẩn</option><option value="cp">Gọn</option><option value="fit">Vừa màn hình</option></select></div>
+  <div><label>Số ô mỗi hàng (form)</label><select id="ui_cols"><option value="1">1 ô</option><option value="2">2 ô</option><option value="3">3 ô</option><option value="4">4 ô</option></select></div>
+  <div><label>&nbsp;</label><button type="button" id="ui_rst" class="sec">Đặt lại giao diện</button></div>
+  <div class="full"><label>Màu chủ đạo</label><div class="sw" id="ui_acc"></div></div>
+ </div>
+ <p class="hint" style="margin:-6px 0 14px">Gợi ý: chọn bố cục <b>Vừa màn hình</b> và <b>3 ô</b> mỗi hàng để thấy cả form lẫn bảng mà không phải cuộn trang. Bảng sẽ cuộn riêng bên trong khung.</p>
  <label>Tên cây trồng</label><input id="cname">
  <div class="row"><button id="addc" class="sec">+ Cây trồng mới</button><button id="delc" class="ghost">Xóa cây này</button></div>
  <p class="hint" style="margin-top:10px">Mỗi cây trồng có bộ trường dữ liệu riêng. Cây mới sẽ sao chép trường của cây đang chọn, sau đó bạn chỉnh lại. Thay đổi được lưu ngay và không làm mất dữ liệu đã nhập.</p>
@@ -66,13 +106,13 @@ button:disabled{opacity:.4}
  <div class="row" style="margin:0 0 6px"><button type="button" id="mic" class="sec">🎤 Nói để nhập</button></div>
  <p class="hint" id="vsay" style="margin:0 0 4px"></p>
  <p class="hint" id="vhint" style="margin:0 0 10px"></p>
- <div class="grid" id="hg"></div>
+ <div class="grid" id="hg" style="grid-template-columns:repeat(3,minmax(0,1fr))"></div>
  <p class="hint" id="dup" style="margin:8px 0 0"></p>
- <div class="grid" id="fg" style="margin-top:10px"></div>
+ <div class="grid fg" id="fg" style="margin-top:10px"></div>
  <div class="row"><button id="save">Lưu bản ghi</button><button class="sec" id="cancel" style="display:none">Hủy sửa</button></div>
 </form>
 
-<section class="card">
+<section class="card" id="lc">
  <div class="head"><b id="count"></b><button id="clr" class="icon" type="button" title="Xóa toàn bộ bản ghi" aria-label="Xóa toàn bộ bản ghi">🗑</button></div>
  <div class="row" style="margin:0 0 10px"><button id="exp" class="sec sm">Xuất Excel cây này</button><button id="expall" class="sec sm">Xuất tất cả cây</button></div>
  <div class="scroll"><table><thead id="th"></thead><tbody id="tb"></tbody></table></div>
@@ -141,7 +181,7 @@ function renderHier(){
  var l=lotOf(sel.lo);
  $("hg").innerHTML='<div><label>Lô</label><select id="h_lo">'+L.map(function(x){return op(x.n,x.n===sel.lo,x.n)}).join("")+'</select></div>'+
   '<div><label>Vị trí</label><select id="h_vt">'+range(l.vt).map(function(i){return op(i,i===sel.vt,i)}).join("")+'</select></div>'+
-  '<div class="full"><label>Cây (mã cây)</label><select id="h_cay">'+range(l.cay).map(function(i){return op(i,i===sel.cay,sel.vt+"."+i)}).join("")+'</select></div>';
+  '<div><label>Cây</label><select id="h_cay">'+range(l.cay).map(function(i){return op(i,i===sel.cay,sel.vt+"."+i)}).join("")+'</select></div>';
  dupNote();
 }
 function advance(){
@@ -160,6 +200,12 @@ function renderCrops(){
  $("cs").innerHTML=crops.map(function(c){return '<option value="'+esc(c.id)+'"'+(c.id===cur?" selected":"")+'>'+esc(c.name)+'</option>'}).join("");
  $("cname").value=curCrop().name;$("ft").textContent="Trường dữ liệu của: "+curCrop().name;
 }
+function fieldBox(f){
+ var w=f.w||(f.type==="long"?"f":"h"),n=+ui.cols||2;
+ if(w==="f"||(w==="2"&&n<3))return '<div class="full">';
+ if(w==="2")return '<div style="grid-column:span 2">';
+ return '<div>';
+}
 function renderForm(v){
  v=v||{};
  $("fg").innerHTML=S.map(function(f){
@@ -167,9 +213,9 @@ function renderForm(v){
   if(f.type==="select"){
    var o=opts(f);if(x&&o.indexOf(x)<0)o.push(x);
    h='<select id="'+id+'"><option value=""></option>'+o.map(function(t){return '<option'+(t===x?" selected":"")+'>'+esc(t)+'</option>'}).join("")+'</select>';
-  }else if(f.type==="long"){h='<textarea id="'+id+'" rows="2">'+esc(x)+'</textarea>';w="full"}
+  }else if(f.type==="long"){h='<textarea id="'+id+'" rows="'+(+f.r||2)+'">'+esc(x)+'</textarea>'}
   else h='<input id="'+id+'" type="'+(f.type==="number"?"number":f.type==="date"?"date":"text")+'"'+(f.type==="number"?' inputmode="decimal" step="any"':' autocomplete="off"')+' value="'+esc(x)+'">';
-  return '<div class="'+w+'"><label>'+esc(f.name)+'</label>'+h+'</div>';
+  return fieldBox(f)+'<label>'+esc(f.name)+'</label>'+h+'</div>';
  }).join("");
  voiceHint();
 }
@@ -180,7 +226,7 @@ function render(){
  $("th").innerHTML="<tr><th>Lô</th><th>Vị trí</th><th>Cây</th>"+S.map(function(f){return "<th>"+esc(f.name)+"</th>"}).join("")+"<th></th></tr>";
  if(!ix.length){$("tb").innerHTML='<tr><td colspan="'+(S.length+4)+'" class="empty">Chưa có dữ liệu</td></tr>';return}
  $("tb").innerHTML=ix.map(function(i){var r=rows[i];
-  return "<tr><td>"+esc(r._lo)+"</td><td>"+esc(r._vt)+"</td><td>"+(r._vt!=null&&r._cay!=null?esc(r._vt+"."+r._cay):"")+"</td>"+S.map(function(f){return "<td>"+esc(r[f.id])+"</td>"}).join("")+'<td style="white-space:nowrap"><button class="ghost" style="color:var(--pri)" data-e="'+i+'">Sửa</button><button class="ghost" data-d="'+i+'">Xóa</button></td></tr>';
+  return "<tr><td>"+esc(r._lo)+"</td><td>"+esc(r._vt)+"</td><td>"+(r._vt!=null&&r._cay!=null?esc(r._vt+"."+r._cay):"")+"</td>"+S.map(function(f){return "<td>"+esc(r[f.id])+"</td>"}).join("")+'<td style="white-space:nowrap"><button class="ghost" style="color:var(--pri)" data-e="'+i+'" title="Sửa">'+(ui.layout!=="std"?"✎":"Sửa")+'</button><button class="ghost" data-d="'+i+'" title="Xóa">'+(ui.layout!=="std"?"✕":"Xóa")+'</button></td></tr>';
  }).reverse().join("");
 }
 function endEdit(v){editing=-1;if(prevSel){sel=prevSel;prevSel=null}renderHier();$("cancel").style.display="none";$("save").textContent="Lưu bản ghi";renderForm(v)}
@@ -236,6 +282,7 @@ function renderCfg(){
   return '<div class="fr" data-i="'+i+'"><input data-k="name" value="'+esc(f.name)+'">'+
   '<select data-k="type">'+TYPES.map(function(t){return '<option value="'+t[0]+'"'+(f.type===t[0]?" selected":"")+'>'+t[1]+'</option>'}).join("")+'</select>'+
   (f.type==="select"?'<input data-k="opts" placeholder="Các lựa chọn, cách nhau bằng dấu phẩy" value="'+esc(f.opts||"")+'">':"")+
+  '<div class="grid"><div><label>Độ rộng ô</label><select data-k="w">'+[["h","1 ô"],["2","2 ô"],["f","Cả hàng"]].map(function(o){var cw=f.w||(f.type==="long"?"f":"h");return '<option value="'+o[0]+'"'+(cw===o[0]?" selected":"")+'>'+o[1]+'</option>'}).join("")+'</select></div>'+(f.type==="long"?'<div><label>Số dòng</label><select data-k="r">'+[2,3,4,6,8].map(function(n){return '<option value="'+n+'"'+((+f.r||2)===n?" selected":"")+'>'+n+'</option>'}).join("")+'</select></div>':"")+'</div>'+
   '<label class="ck"><input type="checkbox" data-k="keep"'+(f.keep?" checked":"")+'> Giữ giá trị sau khi lưu (tiện khi nhập nhiều cây cùng lô)</label>'+
   '<div class="ra"><button class="sec sm" data-a="up">↑</button><button class="sec sm" data-a="dn">↓</button><button class="ghost" data-a="del">Xóa trường</button></div></div>';
  }).join("");
@@ -340,6 +387,34 @@ $("mic").onclick=function(){
  rec.onend=function(){on=false;$("mic").textContent="🎤 Nói để nhập";if(fin)applyVoice(fin)};
  try{rec.start()}catch(e){on=false}
 };
+
+/* ---- Giao diện ---- */
+var UIK="cropui_v1",ACC=[["green","Xanh lá","#2f7d3a","#5fb86b"],["blue","Xanh dương","#1f6feb","#6ea8fe"],["teal","Xanh ngọc","#0f766e","#4fd1c5"],["orange","Cam","#c2570c","#f0a05c"],["purple","Tím","#7e3ff2","#b794f6"],["red","Đỏ","#c62828","#f28b82"]];
+var DENS={s:["8px","8px"],m:["11px","10px"],l:["15px","14px"]};
+var ui={theme:"auto",accent:"green",fs:16,dens:"m",layout:"std",cols:2};
+try{var u0=JSON.parse(localStorage.getItem(UIK)||"null");if(u0)ui=Object.assign(ui,u0)}catch(e){}
+function isDark(){return ui.theme==="dark"||(ui.theme==="auto"&&!!window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches)}
+function applyUI(){
+ var r=document.documentElement,a=ACC.filter(function(x){return x[0]===ui.accent})[0]||ACC[0],d=isDark(),dn=DENS[ui.dens]||DENS.m;
+ if(ui.theme==="auto")r.removeAttribute("data-theme");else r.setAttribute("data-theme",ui.theme);
+ r.style.setProperty("--pri",d?a[3]:a[2]);r.style.setProperty("--pri-tx",d?"#0c1a0e":"#fff");
+ r.classList.toggle("cp",ui.layout!=="std");r.classList.toggle("fit",ui.layout==="fit");r.style.setProperty("--cols",String(+ui.cols||2));
+ r.style.setProperty("--fs",(+ui.fs||16)+"px");r.style.setProperty("--ip",dn[0]);r.style.setProperty("--gap",dn[1]);
+}
+function renderUI(){
+ $("ui_theme").value=ui.theme;$("ui_fs").value=String(ui.fs);$("ui_dens").value=ui.dens;$("ui_lay").value=ui.layout;$("ui_cols").value=String(ui.cols);
+ $("ui_acc").innerHTML=ACC.map(function(a){return '<button type="button" class="'+(a[0]===ui.accent?"on":"")+'" data-a="'+a[0]+'" title="'+a[1]+'" aria-label="'+a[1]+'" style="background:'+(isDark()?a[3]:a[2])+'"></button>'}).join("");
+}
+function saveUI(){try{localStorage.setItem(UIK,JSON.stringify(ui))}catch(e){}applyUI();renderUI();if(S.length){renderForm(collect());renderHier();render()}}
+$("ui_theme").onchange=function(){ui.theme=$("ui_theme").value;saveUI()};
+$("ui_fs").onchange=function(){ui.fs=+$("ui_fs").value;saveUI()};
+$("ui_dens").onchange=function(){ui.dens=$("ui_dens").value;saveUI()};
+$("ui_lay").onchange=function(){ui.layout=$("ui_lay").value;saveUI()};
+$("ui_cols").onchange=function(){ui.cols=+$("ui_cols").value;saveUI()};
+$("ui_acc").onclick=function(e){var a=e.target.getAttribute("data-a");if(a){ui.accent=a;saveUI()}};
+$("ui_rst").onclick=function(){ui={theme:"auto",accent:"green",fs:16,dens:"m",layout:"std",cols:2};saveUI()};
+if(window.matchMedia){var mq=window.matchMedia("(prefers-color-scheme: dark)");if(mq.addEventListener)mq.addEventListener("change",function(){applyUI();renderUI()})}
+applyUI();renderUI();
 
 /* ---- Trình tạo .xlsx tự viết (không cần thư viện, chạy offline) ---- */
 var CT=(function(){var t=[],c,n,k;for(n=0;n<256;n++){c=n;for(k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
