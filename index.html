@@ -35,6 +35,12 @@ th,td{padding:7px 8px;border-bottom:1px solid var(--bd);text-align:left}th{color
 #msg{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--tx);color:var(--bg);padding:10px 16px;border-radius:20px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s}
 #msg.on{opacity:1}
 .bar{display:flex;gap:10px;align-items:flex-end}
+.icon{width:38px;height:38px;padding:0;background:transparent;border:1px solid var(--bd);color:var(--dng);font-size:17px;line-height:1;border-radius:10px}
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px;z-index:20}
+.ov[hidden]{display:none}
+.mb{background:var(--card);border-radius:14px;padding:16px;max-width:420px;width:100%}
+button.danger{background:var(--dng);color:#fff}
+button:disabled{opacity:.4}
 </style>
 </head>
 <body>
@@ -67,12 +73,18 @@ th,td{padding:7px 8px;border-bottom:1px solid var(--bd);text-align:left}th{color
 </form>
 
 <section class="card">
- <div class="head"><b id="count"></b></div>
+ <div class="head"><b id="count"></b><button id="clr" class="icon" type="button" title="Xóa toàn bộ bản ghi" aria-label="Xóa toàn bộ bản ghi">🗑</button></div>
  <div class="row" style="margin:0 0 10px"><button id="exp" class="sec sm">Xuất Excel cây này</button><button id="expall" class="sec sm">Xuất tất cả cây</button></div>
  <div class="scroll"><table><thead id="th"></thead><tbody id="tb"></tbody></table></div>
- <div class="row"><button class="ghost" id="clr">Xóa toàn bộ bản ghi của cây này</button></div>
 </section>
 </main>
+<div class="ov" id="dlg" hidden><div class="mb">
+ <b style="color:var(--dng)">Xóa toàn bộ bản ghi?</b>
+ <p class="hint" id="dm" style="margin:8px 0 12px"></p>
+ <button type="button" id="dx" class="sec" style="width:100%;margin-bottom:12px">Xuất Excel trước để sao lưu</button>
+ <label>Gõ XOA để xác nhận</label><input id="dc" autocomplete="off" placeholder="XOA">
+ <div class="row"><button type="button" id="dn" class="sec">Hủy</button><button type="button" id="dy" class="danger" disabled>Xóa</button></div>
+</div></div>
 <div id="msg"></div>
 <script>
 (function(){
@@ -187,7 +199,20 @@ $("tb").onclick=function(e){
  if(a!==null){editing=+a;var rr=rows[editing];prevSel=Object.assign({},sel);if(rr._lo)sel={lo:rr._lo,vt:rr._vt,cay:rr._cay};renderHier();renderForm(rr);$("cancel").style.display="";$("save").textContent="Cập nhật";window.scrollTo({top:0,behavior:"smooth"})}
  else if(d!==null&&confirm("Xóa bản ghi này?")){rows.splice(+d,1);store(KEY,rows);render();endEdit(collect())}
 };
-$("clr").onclick=function(){var n=curRows().length;if(n&&confirm("Xóa toàn bộ "+n+' bản ghi của cây "'+curCrop().name+'"? Hãy xuất Excel trước nếu cần giữ.')){rows=rows.filter(function(r){return r._c!==cur});store(KEY,rows);render()}};
+$("clr").onclick=function(){
+ var n=curRows().length;if(!n){toast("Cây này chưa có bản ghi");return}
+ $("dm").textContent="Sẽ xóa vĩnh viễn "+n+' bản ghi của cây "'+curCrop().name+'". Không thể hoàn tác.';
+ $("dc").value="";$("dy").disabled=true;$("dlg").hidden=false;$("dc").focus();
+};
+$("dc").oninput=function(){$("dy").disabled=nzr($("dc").value.trim())!=="xoa"};
+$("dn").onclick=function(){$("dlg").hidden=true};
+$("dlg").onclick=function(e){if(e.target===$("dlg"))$("dlg").hidden=true};
+$("dx").onclick=function(){$("exp").onclick()};
+$("dy").onclick=function(){
+ if($("dy").disabled)return;
+ rows=rows.filter(function(r){return r._c!==cur});store(KEY,rows);
+ $("dlg").hidden=true;endEdit(collect());render();toast("Đã xóa toàn bộ bản ghi của cây này");
+};
 
 /* ---- Cây trồng ---- */
 $("cs").onchange=function(){setCur($("cs").value);sel={lo:"",vt:1,cay:1};prevSel=null;renderCrops();endEdit();render();if(!$("cfgp").hidden){renderCfg();renderLots()}};
